@@ -12,7 +12,7 @@ def output(logger, message):
 def printCfgHeader(logger):
     output(logger, '<?xml version="1.0"?>')
     output(logger, '<def format="2">')
-
+    
 def printCfgFooter(logger):
     output(logger, '</def>')
 
@@ -64,11 +64,30 @@ def generateBoostIncludeEntries(boost_path, logger):
     output(logger, '   <!-- AUTOMATICALLY GENERATED END. -->')
     printCfgFooter(logger)
 
+# Generate include for every file (recursivly) given by includePath
+def generateIncludeEntriesFromFolder(includePath, logger):
+
+    if (not isdir(includePath)):
+        print('Error: Invalid include path!', file=sys.stderr)
+        return
+
+    result = sorted([Path(y).relative_to(includePath).as_posix() for x in os.walk(includePath) for y in glob(os.path.join(x[0], '*.*'))], key=str.lower)
+
+    printCfgHeader(logger)
+    output(logger, '   <!-- THIS ENTRIES ARE GENERATED AUTOMATICALLY. See https://github.com/RudolfG/cppcheck-lib-include-tool -->')
+
+    for item in result:
+        output(logger, '   <include name="' + item + '" />')
+
+    output(logger, '   <!-- AUTOMATICALLY GENERATED END. -->')
+    printCfgFooter(logger)
+
 parser = argparse.ArgumentParser(description='Generate the include cfg file.')
 group_i = parser.add_argument_group('Supported third party libs')
 group_i = group_i.add_mutually_exclusive_group(required=True)
-group_i.add_argument('-b', '--boost_dir', type=str, help='Path to the boost root folder')
-group_i.add_argument('-q', '--qt_dir', type=str, help='Path to the qt include folder')
+group_i.add_argument('-b', '--boost_dir', type=str, help='Path to the boost root folder.')
+group_i.add_argument('-q', '--qt_dir', type=str, help='Path to the qt include folder.')
+group_i.add_argument('-i', '--include_dir', type=str, help='Path to the include folder.')
 group_o = parser.add_argument_group('Output')
 group_o.add_argument('-o', '--output_file', help='The path to the output file (default: stdout)', type=argparse.FileType('w'), default=sys.stdout)
 
@@ -79,5 +98,7 @@ if (menu.qt_dir is not None):
     generateQtIncludeEntries(menu.qt_dir, menu.output_file)
 elif (menu.boost_dir is not None):
     generateBoostIncludeEntries(menu.boost_dir, menu.output_file)
+elif (menu.include_dir is not None):
+    generateIncludeEntriesFromFolder(menu.include_dir, menu.output_file)
 else:
     print('Invalid third party lib', file=sys.stderr)
